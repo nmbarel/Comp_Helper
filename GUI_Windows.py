@@ -1,5 +1,5 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
-import sys
+import Users
 
 
 class Log_In_Page(QtWidgets.QMainWindow):
@@ -91,10 +91,39 @@ class Log_In_Page(QtWidgets.QMainWindow):
 
     def ButtonLoop(self):
         self.HidePasswordButton.clicked.connect(lambda: self.pass_state(self.HidePasswordButton.isChecked()))
-        self.Log_In_button.clicked.connect(lambda: print("test"))
+        self.Log_In_button.clicked.connect(lambda: self.login_button(self.lineEdit.text(), self.lineEdit_2.text()))
+        self.Sign_Up_button.clicked.connect((lambda: self.sign_button(self.lineEdit.text(), self.lineEdit_2.text())))
 
     def pass_state(self, toggled):
         if toggled:
             self.lineEdit_2.setEchoMode(QtWidgets.QLineEdit.Password)
         if not toggled:
             self.lineEdit_2.setEchoMode(QtWidgets.QLineEdit.Normal)
+
+    def pop_window(self, win_name, win_msg):
+        new_win = QtWidgets.QMessageBox()
+        new_win.setWindowTitle(win_name)
+        new_win.setText(win_msg)
+        new_win.exec_()
+
+    def sign_button(self, name, password):
+        new_user = Users.User(name, password)
+        if new_user.checkname():
+            self.pop_window("Error", "This name is already in the system, please pick a different one")
+            self.lineEdit.clear()
+        else:
+            new_user.register()
+            self.pop_window("Success", "You are now registered!")
+            self.lineEdit.clear()
+
+    def login_button(self, name, password):
+        logged_user = Users.User(name, password)
+        if logged_user.checkname(): #logs you in and opens main window
+            pass
+        else:
+            self.pop_window("Error", "There is no user by that name in the system, please see the you wrote it "
+                                     "correctly or if you are new, please register")
+            self.lineEdit.clear()
+
+
+
