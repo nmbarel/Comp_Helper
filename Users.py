@@ -42,3 +42,10 @@ class User():
         conn.close()
         return passbool
 
+    def return_user(self):
+        conn = sqlite3.connect('DB_Users.db')
+        c = conn.cursor()
+        username = c.execute('''SELECT username FROM users WHERE password = '{0}' '''.format(self.name))
+        conn.close()
+        return username
+
