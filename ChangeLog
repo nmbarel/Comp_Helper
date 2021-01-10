@@ -1,0 +1,7 @@
+GUI - ver1 DB - ver1: 
+added user database that stores name, password and email.
+added the user class which connects to the user database.
+added functionaly to all buttons except to correctly log it to main window, which is not created yet.
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+GUI - ver1: 
+added Login screen to the program
