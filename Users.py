@@ -1,9 +1,17 @@
 import sqlite3
 
+
 class User():
     def __init__(self, name, password):
         self.name = name
         self.password = password
+        email = ""
+
+    def get_name(self):
+        return self.name
+
+    def get_pass(self):
+        return self.password
 
     def register(self):
         conn = sqlite3.connect('DB_Users.db')
@@ -18,6 +26,7 @@ class User():
         c.execute('''UPDATE users SET email = '{0}' WHERE username = '{1}' '''.format(email, self.name))
         conn.commit()
         conn.close()
+        self.email = email
 
     def checkname(self):
         conn = sqlite3.connect('DB_Users.db')
@@ -45,7 +54,7 @@ class User():
     def return_user(self):
         conn = sqlite3.connect('DB_Users.db')
         c = conn.cursor()
-        username = c.execute('''SELECT username FROM users WHERE password = '{0}' '''.format(self.name))
+        username = c.execute('''SELECT username FROM users WHERE username = '{0}' '''.format(self.name))
+        name = username.fetchone()
         conn.close()
-        return username
-
+        return name[0]

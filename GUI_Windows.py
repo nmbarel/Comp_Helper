@@ -1,5 +1,6 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 import Users
+logged_user = None
 
 
 class Log_In_Page(QtWidgets.QMainWindow):
@@ -107,13 +108,15 @@ class Log_In_Page(QtWidgets.QMainWindow):
         new_win.exec_()
 
     def sign_button(self, name, password):
-        new_user = Users.User(name, password)
-        if new_user.checkname():
+        global logged_user
+        logged_user = Users.User(name, password)
+        if logged_user.checkname():
             self.pop_window("Error", "This name is already in the system, please pick a different one")
             self.lineEdit.clear()
             self.lineEdit_2.clear()
-        elif name is None or name.find(" ") != -1:
-            self.pop_window("Error", "This name is not valid, please make sure there are no space bars!")
+        elif name is None or name.find(" ") != -1 or name == "" or len(name) > 20:
+            self.pop_window("Error", "This name is not valid, please make sure there are no space bars and it is no "
+                                     "more than 20 characters!")
             self.lineEdit.clear()
             self.lineEdit_2.clear()
         elif password is None or password.find(" ") != -1:
@@ -121,15 +124,20 @@ class Log_In_Page(QtWidgets.QMainWindow):
             self.lineEdit.clear()
             self.lineEdit_2.clear()
         else:
-            new_user.register()
+            logged_user.register()
             self.pop_window("Success", "You are now registered!")
             self.lineEdit.clear()
             self.lineEdit_2.clear()
 
     def login_button(self, name, password):
+        global logged_user
         logged_user = Users.User(name, password)
         if logged_user.checkname(): #logs you in and opens main window
-            if logged_user.return_user() and logged_user.checkpass() == logged_user.user(name, password):
+            print("the name is " + logged_user.get_name())
+            print("the pass is " + logged_user.get_pass())
+            if logged_user.return_user() == logged_user.get_name() \
+                    and logged_user.checkpass():
+                self.pop_window("Success", "You are now logged in!")
                 self.close()
             else:
                 self.pop_window("Error", "This password is incorrect, please insert it again")
@@ -146,12 +154,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.retranslateUi()
 
     def setupUi(self):
+        global logged_user
         self.setObjectName("MainWindow")
-        self.resize(1061, 272)
+        labellength = logged_user.get_name()
+        self.resize(450 + (30 * len(labellength)), 272)
         self.centralwidget = QtWidgets.QWidget(self)
         self.centralwidget.setObjectName("centralwidget")
         self.label = QtWidgets.QLabel(self.centralwidget)
-        self.label.setGeometry(QtCore.QRect(340, 80, 241, 101))
+        self.label.setGeometry(QtCore.QRect(100, 80, 241, 101))
         font = QtGui.QFont()
         font.setFamily("Microsoft YaHei")
         font.setPointSize(36)
@@ -160,7 +170,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.label.setFont(font)
         self.label.setObjectName("label")
         self.label_2 = QtWidgets.QLabel(self.centralwidget)
-        self.label_2.setGeometry(QtCore.QRect(600, 80, 161, 101))
+        self.label_2.setGeometry(QtCore.QRect(350, 80, 30 * len(labellength), 101))
         font = QtGui.QFont()
         font.setFamily("Microsoft YaHei")
         font.setPointSize(36)
@@ -194,6 +204,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.actionWebstibe_Blocker.setObjectName("actionWebstibe_Blocker")
         self.actionCalender = QtWidgets.QAction(self)
         self.actionCalender.setObjectName("actionCalender")
+        self.actionTorrent_Downloader = QtWidgets.QAction(self)
+        self.actionTorrent_Downloader.setObjectName("Torrent Downloader")
         self.menuUser.addAction(self.actionUser_Info)
         self.menuUser.addSeparator()
         self.menuUser.addAction(self.actionCustomize)
@@ -206,6 +218,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.menuApplications.addAction(self.actionWebstibe_Blocker)
         self.menuApplications.addSeparator()
         self.menuApplications.addAction(self.actionCalender)
+        self.menuApplications.addSeparator()
+        self.menuApplications.addAction(self.actionTorrent_Downloader)
         self.menubar.addAction(self.menuUser.menuAction())
         self.menubar.addAction(self.menuApplications.menuAction())
 
@@ -213,10 +227,11 @@ class MainWindow(QtWidgets.QMainWindow):
         QtCore.QMetaObject.connectSlotsByName(self)
 
     def retranslateUi(self):
+        global logged_user
         _translate = QtCore.QCoreApplication.translate
         self.setWindowTitle(_translate("MainWindow", "MainWindow"))
         self.label.setText(_translate("MainWindow", "Welcome "))
-        self.label_2.setText(_translate("MainWindow", "User"))
+        self.label_2.setText(_translate("MainWindow", logged_user.name))
         self.menuUser.setTitle(_translate("MainWindow", "User"))
         self.menuApplications.setTitle(_translate("MainWindow", "Applications"))
         self.actionUser_Info.setText(_translate("MainWindow", "User Info"))
@@ -225,4 +240,5 @@ class MainWindow(QtWidgets.QMainWindow):
         self.actionPassword_Manager.setText(_translate("MainWindow", "Password Manager"))
         self.actionDownload_Tracker.setText(_translate("MainWindow", "Download Tracker"))
         self.actionWebstibe_Blocker.setText(_translate("MainWindow", "Webstibe Blocker"))
+        self.actionTorrent_Downloader.setText(_translate("MainWindow", "Torrent Downloader"))
         self.actionCalender.setText(_translate("MainWindow", "Calender "))
