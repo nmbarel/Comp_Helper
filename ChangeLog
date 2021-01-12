@@ -1,3 +1,6 @@
+ver 0.01:
+added main window class - no functionality yet except window itself.
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 GUI - ver1 DB - ver1: 
 added user database that stores name, password and email.
 added the user class which connects to the user database.
