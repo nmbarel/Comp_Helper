@@ -31,13 +31,19 @@ class Torrent(object):
             return sum([int(f[b'length']) for f in info[b'files']])
 
     def get_torrent_info_hash(self):
-        print(self.torrent_info[b'info'])
-        print(bencoder.encode(self.torrent_info[b'info']))
-        print(hashlib.sha1(bencoder.encode(self.torrent_info[b'info'])).digest())
+        #print(self.torrent_info)
+        #print(bencoder.encode(self.torrent_info[b'info']))
+        #print(hashlib.sha1(bencoder.encode(self.torrent_info[b'info'])).digest())
         return hashlib.sha1(bencoder.encode(self.torrent_info[b'info'])).digest()
+
+    def get_torrent_info_hash_decoded(self):
+        return()
 
     def get_torrent_tracker(self):
         return self.torrent_info[b'announce'].decode('utf-8')
+
+    def get_torrent_announce_list(self):
+        return self.torrent_info[b'announce-list']
 
     def get_torrent_pieces(self):
         return self.torrent_info[b'info'][b'pieces']
@@ -55,8 +61,8 @@ class Tracker(object):
     def get_request_params(self):
         return \
             {
-                'info_hash': (self.torrent.get_torrent_info_hash()),
-                'peer_id': (get_peer_id()),
+                'info_hash': urllib.parse.quote(self.torrent.get_torrent_info_hash()),
+                'peer_id': urllib.parse.quote(get_peer_id()),
                 'compact': 1,
                 'no_peer_id': 0,
                 'event': 'started',
@@ -66,9 +72,28 @@ class Tracker(object):
                 'left': self.torrent.get_torrent_size()
             }
 
-    async def request_peers(self):
+    async def request_peers(self, url):
+        i = 1
         async with aiohttp.ClientSession(trust_env = True) as session:
-            response = await session.get(self.url, params=self.get_request_params())
+            if url[-1] != "e":
+                url += "/announce"
+            print(url)
+            try:
+                response = await session.get(url, params=self.get_request_params(), ssl=False)
+            except Exception:
+                print('Failed to get response')
+                tracker_list = self.torrent.get_torrent_announce_list()
+                while i <= len(tracker_list):
+                    tracker = tracker_list[i]
+                    print('1111', type(tracker), tracker)
+                    i += 1
+                    print(tracker_list)
+                    await self.request_peers(tracker[0].decode('utf-8'))
+
+            #test = self.get_request_params()
+            #test1 = list(test.keys())
+            #response = await session.get(self.url + "?" + test1[0] + "=" + test[test1[0]] + test1[1] + "=" + test[test1[1]] + test1[2] + "=" + test[test1[2]] + test1[3] + "=" + test[test1[3]] + test1[4] + "=" + test[test1[4]] + test1[5] + "=" + test[test1[5]] + test1[6] + "=" + test[test1[6]] + test1[7] + "=" + test[test1[7]] + test1[8] + "=" + test[test1[8]])
+            print(response.url)
             response_data = await response.read()
             print("client request: {}".format(response))
             print("tracker response data: {}".format(response_data))
@@ -88,9 +113,10 @@ if __name__ == '__main__':
     # loop.set_debug(True)
     # loop.slow_callback_duration = 0.001
 
-    test_torrent = Torrent("C:\\temp\\wired-cd.torrent")
+    test_torrent = Torrent("C:\\temp\\testi.torrent")
     test_tracker = Tracker(test_torrent)
+    print(urllib.parse.quote(test_torrent.get_torrent_info_hash()))
     print(test_torrent.get_torrent_tracker())
     print(test_torrent.get_torrent_name().decode())
-    loop.run_until_complete(test_tracker.request_peers())
+    loop.run_until_complete(test_tracker.request_peers(test_torrent.get_torrent_tracker()))
     loop.close()

@@ -126,6 +126,7 @@ class Log_In_Page(QtWidgets.QMainWindow):
         else:
             logged_user.register()
             self.pop_window("Success", "You are now registered!")
+            self.login_button(name, password)
             self.lineEdit.clear()
             self.lineEdit_2.clear()
 
