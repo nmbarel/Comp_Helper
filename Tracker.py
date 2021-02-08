@@ -35,6 +35,7 @@ class Tracker(object):
                 'left': self.torrent.get_torrent_size()
             }
 
+
 class Tracker_http(Tracker):
     async def request_peers_http(self, url):
         i = 1
@@ -92,22 +93,18 @@ class Tracker_udp(Tracker):
         self.sock.sendto(header + payload, (self.host, self.port))
         return trans
 
-    def send_connect_udp(self):
-        sended = self.send(0)
-        print(sended)
-        return sended
+    def announce_payload(self, downloaded = 0, left = 0, uploaded = 0, event = 0, key = get_transaction_id()):
+        payload = [self.torrent.get_torrent_info_hash_decoded(), get_peer_id().encode(), downloaded,
+                   self.torrent.get_torrent_size(), uploaded, event, 0, 1, -1, 6988]
+        p_tosend = None
+        try:
+            p_tosend = struct.pack('!20s20sqqqiIIiH', *payload)
+        except Exception as e:
+            print("there was an error: {0}".format(e))
+        return p_tosend
 
-    def announce_payload(self, downloaded = 0, left = 0, uploaded = 0, event = 0):
-        payload = [self.torrent.get_torrent_info_hash, get_peer_id(), downloaded, left, uploaded, event, 0, get_transaction_id(), -1, 6988]
-        return struct.pack('!20s20sqqqiIIiH', *payload)
-
-    def send_announce_udp(self):
-        sended = self.send(1, self.announce_payload())
-        print(sended)
-        return sended
-
-    def interpret(self):
-        self.sock.settimeout(15)
+    def interpret(self, timeout=10):
+        self.sock.settimeout(timeout)
         print("got to interpret")
         try:
             response = self.sock.recv(10240)
@@ -119,20 +116,24 @@ class Tracker_udp(Tracker):
         headers = response[:8]
         payload = response[8:]
 
-        action, trans_id = struct.unpack('!LL', headers)
+        action, trans_id = struct.unpack('!ll', headers)
 
         try:
             trans = self.transactions[trans_id]
         except KeyError:
             raise TrackerResponseException("InvalidTransaction: id not found", trans_id)
 
-        trans['response'] = self.process(action, payload, trans)
+        try:
+            trans['response'] = self.process(action, payload, trans)
+        except Exception as e:
+            trans['response'] = None
+            print("error occured: {0}".format(e))
         trans['completed'] = True
         del self.transactions[trans_id]
-        print(trans)
+        #print(trans)
         return trans
 
-    async def connect_udp(self, try_num):
+    async def connect_udp(self, try_num = 0):
         if try_num == len(self.torrent.get_torrent_announce_list()):
             print("no tracker worked.")
             return None
@@ -151,8 +152,53 @@ class Tracker_udp(Tracker):
                 await self.connect_udp(try_num + 1)
             return answer
 
-    async def announce_udp(self, try_num):
-        pass
+    async def announce_udp(self, try_num = 1):
+        self.sock.settimeout(15)
+        answer = {}
+        inner_while = False
+        while try_num < 4:
+            while try_num < 4:
+                try:
+                    print("trying to send")
+                    sended = self.send(1, self.announce_payload())
+                    print("sending the following packet: {0}".format(sended))
+                    print(self.url)
+                    inner_while = True
+                    break
+                except Exception:
+                    print("problem in sending")
+                    try_num += 1
+            if not inner_while:
+                break
+            try:
+                answer = self.interpret(15)
+                break
+            except Exception:
+                print("problem in receiving")
+                try_num += 1
+        print("announce answer is: {0}".format(answer))
+        return answer
+
+        # if try_num > 2:
+        #     print("tracker did not respond to the request")
+        #     return None
+        # try:
+        #     print("trying to send")
+        #     sended = self.send(1, self.announce_payload())
+        #     print(sended)
+        # except Exception:
+        #     print("problem with sending")
+        #     if await self.announce_udp(try_num + 1) is None:
+        #         print("none worked")
+        #         return None
+        # finally:
+        #     answer = {}
+        #     try:
+        #         answer = self.interpret(15*try_num)
+        #     except Exception:
+        #         print("problem in receiving")
+        #         await self.announce_udp(try_num+1)
+        #     return answer
 
     def process(self, action, payload, trans):
 
@@ -164,13 +210,34 @@ class Tracker_udp(Tracker):
             return self.process_scrape(payload, trans)
         elif action == 3:
             return self.process_error(payload, trans)
-
         else:
             raise TrackerResponseException("Invalid Action", action)
 
     def process_connect(self, payload, trans):
         self.conn_id = struct.unpack('!Q', payload)[0]
         return self.conn_id
+
+    def process_announce(self, payload, trans):
+        response = {}
+        info = payload[:struct.calcsize("!lll")]
+        interval, leechers, seeders = struct.unpack("!lll", info)
+        print(interval, leechers, seeders, "noamsssssss")
+        peer_data = payload[struct.calcsize("!lll"):]
+        peer_size = struct.calcsize("!lH")
+        num_of_peers = int(len(peer_data) / peer_size)
+        print("the number of peers is: {0} and the peer data is: {1}".format(num_of_peers, peer_data))
+        print()
+        peers = []
+        for peer_offset in range(num_of_peers):
+            off = peer_size * peer_offset
+            peer = peer_data[off:off + peer_size]
+            addr, port = struct.unpack("!lH", peer)
+            peers.append({
+                'addr': socket.inet_ntoa(struct.pack('!L', addr)),
+                'port': port,
+            })
+        print(payload)
+        return dict(interval=interval, leechers=leechers, seeders=seeders, peers=peers)
 
 
 if __name__ == '__main__':
@@ -185,6 +252,6 @@ if __name__ == '__main__':
     print(urllib.parse.quote(test_torrent.get_torrent_info_hash()))
     print(test_torrent.get_torrent_tracker())
     print(test_torrent.get_torrent_name().decode())
-    loop.run_until_complete(test_tracker.connect_udp(0))
-    print(test_tracker.conn_id)
+    loop.run_until_complete(test_tracker.connect_udp())
+    loop.run_until_complete(test_tracker.announce_udp())
     loop.close()
