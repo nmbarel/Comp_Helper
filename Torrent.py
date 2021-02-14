@@ -23,6 +23,13 @@ class Torrent(object):
     def get_torrent_name(self):
         return self.torrent_info[b'info'][b'name']
 
+    def get_torrent_ind_size(self):
+        info = self.torrent_info[b'info']
+        if b'length' in info:
+            return {info[b'name']: info[b'length']}
+        else:
+            return [{f[b'name']: f[b'length']} for f in info[b'files']]
+
     def get_torrent_size(self):
         info = self.torrent_info[b'info']
         if b'length' in info:
